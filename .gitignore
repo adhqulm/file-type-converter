@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+tmp/
+venv/
+dist/
+build/
+*.spec
