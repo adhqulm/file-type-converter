@@ -277,8 +277,13 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
         print(f"Error: {e}")
 
 
+async def post_init(app):
+    await app.bot.set_chat_menu_button()
+    await app.bot.set_my_commands([("start", "Start the bot")])
+
+
 def main():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app = ApplicationBuilder().token(BOT_TOKEN).post_init(post_init).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL,
                                    handle_file))
