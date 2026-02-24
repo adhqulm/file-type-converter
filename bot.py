@@ -1,6 +1,5 @@
-# flake8: noqa
+"""Telegram bot that converts files between various formats."""
 
-import sys
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -19,14 +18,7 @@ from telegram.ext import (
     filters,
 )
 from converter import (
-    TMP_DIR,
     infer_type_from_path,
-    IMAGE_INPUT_EXTS, IMAGE_OUTPUT_EXTS,
-    PDF_EXT,
-    DOC_INPUT_EXTS,
-    TEXT_INPUT_EXTS,
-    AUDIO_INPUT_EXTS, AUDIO_OUTPUT_EXTS,
-    VIDEO_INPUT_EXTS, VIDEO_OUTPUT_EXTS,
     save_telegram_file_to_tmp,
     convert_image_to_image,
     convert_image_to_pdf,
@@ -39,17 +31,14 @@ from converter import (
     convert_video_ffmpeg,
 )
 
-if getattr(sys, "frozen", False):
-    _base_dir = Path(sys.executable).parent
-else:
-    _base_dir = Path(__file__).parent
-load_dotenv(_base_dir / ".env")
+load_dotenv()
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 
 USER_LAST_FILE: dict[int, dict] = {}
 
 
 def build_keyboard_for_kind(kind: str) -> InlineKeyboardMarkup | None:
+    """Return inline keyboard with available output formats for file kind."""
     if kind == "image":
         buttons = [
             [InlineKeyboardButton("JPG", callback_data="to:.jpg"),
@@ -115,7 +104,8 @@ def build_keyboard_for_kind(kind: str) -> InlineKeyboardMarkup | None:
             [InlineKeyboardButton("GIF", callback_data="to:.gif"),
              InlineKeyboardButton("TS", callback_data="to:.ts"),
              InlineKeyboardButton("3GP", callback_data="to:.3gp")],
-            [InlineKeyboardButton("--- Extract Audio ---", callback_data="noop")],
+            [InlineKeyboardButton("--- Extract Audio ---",
+                                  callback_data="noop")],
             [InlineKeyboardButton("MP3", callback_data="to:.mp3"),
              InlineKeyboardButton("WAV", callback_data="to:.wav"),
              InlineKeyboardButton("FLAC", callback_data="to:.flac")],
@@ -129,6 +119,7 @@ def build_keyboard_for_kind(kind: str) -> InlineKeyboardMarkup | None:
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Send a welcome message listing all supported formats."""
     text = (
         "*File Converter Bot*\n\n"
         "Send me any file and I'll convert it for you.\n\n"
@@ -165,6 +156,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Download an incoming file and show the format selection keyboard."""
     if update.message.photo:
         tg_file = await update.message.photo[-1].get_file()
         suffix = ".jpg"
@@ -184,7 +176,8 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     kb = build_keyboard_for_kind(kind)
     if not kb:
-        await update.message.reply_text("Unsupported file type. Try another file.")
+        await update.message.reply_text(
+            "Unsupported file type. Try another file.")
         return
 
     await update.message.reply_text(
@@ -196,6 +189,7 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_conversion_choice(
         update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Run the conversion when the user taps a format button."""
     query = update.callback_query
     await query.answer()
 
@@ -205,7 +199,8 @@ async def handle_conversion_choice(
     user_id = query.from_user.id
     state = USER_LAST_FILE.get(user_id)
     if not state:
-        await query.edit_message_text("I don't have a file from you yet. Send me one first.")
+        await query.edit_message_text(
+            "I don't have a file from you yet. Send me one first.")
         return
 
     src_path: Path = state["path"]
@@ -254,7 +249,7 @@ async def handle_conversion_choice(
         await context.bot.send_document(
             chat_id=query.message.chat_id,
             document=InputFile(out_path.open("rb"), filename=out_path.name),
-            caption="Conversion complete. You can send another file to convert now.",
+            caption="Conversion complete. Send another file to convert.",
         )
 
     except Exception as e:
@@ -270,20 +265,18 @@ async def handle_conversion_choice(
             pass
 
 
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def error_handler(update: object,
+                        context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Log errors raised by handlers."""
     try:
         raise context.error
     except Exception as e:
         print(f"Error: {e}")
 
 
-async def post_init(app):
-    await app.bot.set_chat_menu_button()
-    await app.bot.set_my_commands([("start", "Start the bot")])
-
-
 def main():
-    app = ApplicationBuilder().token(BOT_TOKEN).post_init(post_init).build()
+    """Start the bot."""
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL,
                                    handle_file))

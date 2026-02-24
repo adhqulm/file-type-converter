@@ -1,4 +1,4 @@
-# flake8: noqa
+"""File conversion functions for all supported formats."""
 
 from pathlib import Path
 from PIL import Image
@@ -85,7 +85,8 @@ def _safe_stem(name: str) -> str:
 def _run(cmd: list[str]) -> None:
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if proc.returncode != 0:
-        raise RuntimeError(proc.stderr.decode(errors="ignore") or "Command failed")
+        raise RuntimeError(proc.stderr.decode(
+            errors="ignore") or "Command failed")
 
 
 def _which_or_raise(bin_name: str, display: str):
@@ -95,6 +96,7 @@ def _which_or_raise(bin_name: str, display: str):
 
 
 async def save_telegram_file_to_tmp(tg_file, suffix: str = "") -> Path:
+    """Download a Telegram file object to a unique temp path and return it."""
     out = TMP_DIR / f"{uuid.uuid4().hex}{suffix}"
     await tg_file.download_to_drive(out)
     return out
@@ -105,6 +107,7 @@ async def save_telegram_file_to_tmp(tg_file, suffix: str = "") -> Path:
 # =====================================================================
 
 def convert_image_to_image(src_path: Path, target_ext: str) -> Path:
+    """Convert an image to another image format using Pillow."""
     im = Image.open(src_path)
     target_ext = target_ext.lower()
     if target_ext not in IMAGE_OUTPUT_EXTS:
@@ -137,6 +140,7 @@ def convert_image_to_image(src_path: Path, target_ext: str) -> Path:
 
 
 def convert_image_to_pdf(src_path: Path) -> Path:
+    """Convert an image to a single-page PDF."""
     im = Image.open(src_path)
     out_path = TMP_DIR / f"{_safe_stem(src_path.name)}.pdf"
     im_converted = im.convert("RGB")
@@ -149,9 +153,11 @@ def convert_image_to_pdf(src_path: Path) -> Path:
 # =====================================================================
 
 def convert_pdf_to_images_zip(src_path: Path, target_img_ext: str) -> Path:
+    """Render each PDF page as an image and return them in a ZIP archive."""
     target_img_ext = target_img_ext.lower()
     if target_img_ext not in {".png", ".jpg", ".jpeg", ".webp"}:
-        raise ValueError("Only .png, .jpg, or .webp are supported for PDF pages.")
+        raise ValueError(
+            "Only .png, .jpg, or .webp are supported for PDF pages.")
     doc = fitz.open(src_path)
     tmp_dir = TMP_DIR / uuid.uuid4().hex
     tmp_dir.mkdir(parents=True, exist_ok=True)
@@ -178,6 +184,7 @@ def convert_pdf_to_images_zip(src_path: Path, target_img_ext: str) -> Path:
 
 
 def convert_pdf_to_text(src_path: Path) -> Path:
+    """Extract all text from a PDF and save it as a .txt file."""
     doc = fitz.open(src_path)
     text = ""
     for page in doc:
@@ -189,6 +196,7 @@ def convert_pdf_to_text(src_path: Path) -> Path:
 
 
 def convert_pdf_to_html(src_path: Path) -> Path:
+    """Extract text from a PDF and save it as a basic HTML file."""
     doc = fitz.open(src_path)
     html_parts = ["<html><body>"]
     for i, page in enumerate(doc):
@@ -205,6 +213,7 @@ def convert_pdf_to_html(src_path: Path) -> Path:
 # =====================================================================
 
 def convert_doc_to_format(src_path: Path, target_ext: str) -> Path:
+    """Convert office document to target format using LibreOffice headless."""
     _which_or_raise("libreoffice", "LibreOffice")
     target_ext = target_ext.lower().lstrip(".")
     out = TMP_DIR / f"{_safe_stem(src_path.name)}.{target_ext}"
@@ -223,6 +232,7 @@ def convert_doc_to_format(src_path: Path, target_ext: str) -> Path:
 
 # Keep old name as alias
 def convert_doc_to_pdf(src_path: Path) -> Path:
+    """Convert an office document to PDF (alias for convert_doc_to_format)."""
     return convert_doc_to_format(src_path, "pdf")
 
 
@@ -231,6 +241,7 @@ def convert_doc_to_pdf(src_path: Path) -> Path:
 # =====================================================================
 
 def convert_text_with_pandoc(src_path: Path, target_ext: str) -> Path:
+    """Convert a text/markup file to another format using Pandoc."""
     _which_or_raise("pandoc", "Pandoc")
     target_ext = target_ext.lower()
     if target_ext not in TEXT_OUTPUT_EXTS:
@@ -246,6 +257,7 @@ def convert_text_with_pandoc(src_path: Path, target_ext: str) -> Path:
 # =====================================================================
 
 def convert_audio_ffmpeg(src_path: Path, target_ext: str) -> Path:
+    """Convert an audio file to another audio format using FFmpeg."""
     _which_or_raise("ffmpeg", "FFmpeg")
     target_ext = target_ext.lower()
     if target_ext not in AUDIO_OUTPUT_EXTS:
@@ -274,6 +286,7 @@ def convert_audio_ffmpeg(src_path: Path, target_ext: str) -> Path:
 # =====================================================================
 
 def convert_video_ffmpeg(src_path: Path, target_ext: str) -> Path:
+    """Transcode a video or extract its audio using FFmpeg."""
     _which_or_raise("ffmpeg", "FFmpeg")
     target_ext = target_ext.lower()
     # Audio extraction
@@ -320,6 +333,7 @@ def convert_video_ffmpeg(src_path: Path, target_ext: str) -> Path:
 # =====================================================================
 
 def infer_type_from_path(path: Path) -> str:
+    """Return the file category string based on the file extension."""
     ext = path.suffix.lower()
     if ext in IMAGE_INPUT_EXTS:
         return "image"
