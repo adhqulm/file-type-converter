@@ -212,13 +212,26 @@ def convert_pdf_to_html(src_path: Path) -> Path:
 #  Office docs (LibreOffice headless)
 # =====================================================================
 
+def _libreoffice_bin() -> str:
+    """Return the LibreOffice executable path."""
+    import sys
+    if sys.platform == "win32":
+        candidate = r"C:\Program Files\LibreOffice\program\soffice.exe"
+        if Path(candidate).exists():
+            return candidate
+    for name in ("soffice", "libreoffice"):
+        if shutil.which(name):
+            return name
+    raise RuntimeError("LibreOffice is required but not found on PATH.")
+
+
 def convert_doc_to_format(src_path: Path, target_ext: str) -> Path:
     """Convert office document to target format using LibreOffice headless."""
-    _which_or_raise("libreoffice", "LibreOffice")
+    lo = _libreoffice_bin()
     target_ext = target_ext.lower().lstrip(".")
     out = TMP_DIR / f"{_safe_stem(src_path.name)}.{target_ext}"
     cmd = [
-        "libreoffice", "--headless", "--convert-to", target_ext,
+        lo, "--headless", "--convert-to", target_ext,
         "--outdir", str(TMP_DIR), str(src_path)
     ]
     _run(cmd)
